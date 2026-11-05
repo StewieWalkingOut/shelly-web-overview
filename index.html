@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Shelly Energioverview</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { text-align: center; }
+        .cards { display: flex; gap: 20px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px 30px; text-align: center; min-width: 150px; }
+        .card .value { font-size: 2em; font-weight: bold; color: #4fc3f7; }
+        .card .label { font-size: 0.9em; color: #aaa; margin-top: 5px; }
+        canvas { max-height: 400px; }
+    </style>
+</head>
+<body>
+    <h1>⚡ Shelly Plug M Gen3 — Energiförbrukning</h1>
+    
+    <div class="cards">
+        <div class="card"><div class="value" id="power">-</div><div class="label">Effekt (W)</div></div>
+        <div class="card"><div class="value" id="energy">-</div><div class="label">Total energi (kWh)</div></div>
+        <div class="card"><div class="value" id="voltage">-</div><div class="label">Spänning (V)</div></div>
+        <div class="card"><div class="value" id="temp">-</div><div class="label">Temperatur (°C)</div></div>
+    </div>
+    
+    <canvas id="chart"></canvas>
+
+    <script>
+        let chart;
+        
+        function loadData() {
+            fetch('/api/data')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.length === 0) return;
+                    
+                    const last = data[data.length - 1];
+                    document.getElementById('power').textContent = last.apower.toFixed(1);
+                    document.getElementById('energy').textContent = (last.aenergy_total / 1000).toFixed(6);
+                    document.getElementById('voltage').textContent = last.voltage.toFixed(1);
+                    document.getElementById('temp').textContent = last.temperature.toFixed(1);
+                    
+                    const labels = data.map(d => d.timestamp);
+                    const powers = data.map(d => d.apower);
+                    
+                    if (chart) {
+                        chart.data.labels = labels;
+                        chart.data.datasets[0].data = powers;
+                        chart.update();
+                    } else {
+                        chart = new Chart(document.getElementById('chart'), {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Effekt (W)',
+                                    data: powers,
+                                    borderColor: '#4fc3f7',
+                                    backgroundColor: 'rgba(79,195,247,0.1)',
+                                    fill: true,
+                                    pointRadius: 0,
+                                    borderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: { legend: { labels: { color: '#eee' } } },
+                                scales: {
+                                    x: { ticks: { color: '#aaa', maxTicksLimit: 10 } },
+                                    y: { ticks: { color: '#aaa' }, title: { display: true, text: 'W', color: '#aaa' } }
+                                }
+                            }
+                        });
+                    }
+                });
+        }
+        
+        loadData();
+        setInterval(loadData, 10000); // uppdatera vart 10:e sekund
+    </script>
+</body>
+</html>   
